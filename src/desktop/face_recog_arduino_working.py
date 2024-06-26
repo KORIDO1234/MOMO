@@ -4,12 +4,16 @@ import cv2
 import numpy as np
 from PIL import Image
 import os
-import mediapipe as mp
 import math
 import serial
 import time
 import json
 import openvino as ov
+from tkinter import *
+from PIL import Image, ImageTk, ImageFont, ImageDraw
+import time
+from enum import Enum
+from queue import Queue
 
 # 아두이노 연결 여부를 나타내는 변수 초기화
 is_arduino_connected = False
@@ -43,6 +47,29 @@ known_names = []
 # 사람 정보 파일 경로
 person_data_file = "person_data.json"
 
+# Tkinter 창 생성
+root = Tk()
+root.title("Auto-adjusting Monitor")
+
+# 메시지 큐 생성
+message_queue = Queue()
+
+# 비디오 프레임을 표시할 라벨 생성
+video_label = Label(root)
+video_label.pack()
+
+# 폰트 설정
+font = ("Arial", 20)
+
+# 정수와 문자열 설정
+# int1 = 42
+# int2 = 99
+name = "Unknown"
+
+# 사용자 이름을 표시할 라벨 생성
+name_label = Label(root, text=f"사용자: Unknown", font=font, anchor='w')
+name_label.pack(fill='x', padx=10, pady=10)
+
 # 함수 선언
 def read_value(key):
     try:
@@ -51,10 +78,10 @@ def read_value(key):
             if key in data:
                 value1 = data[key]["value1"]
                 value2 = data[key]["value2"]
-                print(f"[{key}] value1: {value1}, value2: {value2}")
+                #print(f"[{key}] value1: {value1}, value2: {value2}")
                 return value1, value2
             else:
-                print(f"'{key}' does't exist.")
+                print(f"'{key}' doesn't exist.")
                 return None, None
     except FileNotFoundError:
         print("JSON file doesn't exist.")
@@ -82,11 +109,6 @@ def write_value(key, value1, value2):
     except IOError:
         print("JSON file write Fail")
 
-# 파일에서 사람 정보 읽어오기
-# if os.path.exists(person_data_file):
-#     with open(person_data_file, "r") as file:
-#         person_data = json.load(file)
-
 # 각 회원 폴더의 이미지를 로드하여 인코딩
 for member_folder in member_folders:
     member_name = member_folder.split('/')[2]  # 폴더명에서 이름 추출
@@ -99,10 +121,6 @@ for member_folder in member_folders:
             encoding = resnet(face.unsqueeze(0)).detach().cpu()
             known_encodings.append(encoding)
             known_names.append(member_name)
-
-# face_mesah 초기화
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 # 얼굴 각도 추정 모델
 core = ov.Core()
@@ -125,20 +143,22 @@ video_capture = cv2.VideoCapture(0)
 prev_angle = 90
 height = 0
 angle = 0
+name = "Unknown"
 
-# 3초 동안 비디오 프레임 보여주기
-start_time = time.time()
-while time.time() - start_time < 3:
-    ret, frame = video_capture.read()
-    cv2.imshow('Video', frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+# system state
+class SystemState(Enum):
+    WAIT = 1
+    WORKING = 2    
+sState = SystemState.WAIT
 
-while True:
+def update_frame() :
+    global recognized_person, prev_angle, height, angle, name, is_changed
+
+    #while True:
     # 비디오 프레임 읽기
     ret, frame = video_capture.read()
     if not ret:
-        break
+        return
 
     # 현재 프레임에서 얼굴 찾기
     image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -153,38 +173,32 @@ while True:
         min_index = distances.index(min_distance)
         
         name = "Unknown"
+        #name = "Undefined"
         is_member = False
         if min_distance < 1.0:  # 임계값 설정 (필요에 따라 조정 가능)
             name = known_names[min_index]
             is_member = True
+            recognized_person = name
+        else:
+            is_member = False
 
-            # 첫 번째 인식된 사람 설정
-            if recognized_person is None:
-                recognized_person = name
-                recognized_time = time.time()
-            else:
-                # 10초 동안 다른 사람으로 인식되면 새로운 작업 수행
-                if name != recognized_person and time.time() - recognized_time >= 10:
-                    print(f"새로운 사람 인식: {name}")
-                    # 여기에 새로운 작업 코드 추가
-                    recognized_person = name
-                    recognized_time = time.time() 
-                    is_changed = True
-        
         # 얼굴 주위에 사각형 그리기 및 이름 표시
         boxes, _ = mtcnn.detect(image)
-        if boxes is not None:
-            for box in boxes:
-                cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 0, 255), 2)
-                cv2.putText(frame, name, (int(box[0]), int(box[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        # if boxes is not None:
+        #     for box in boxes:
+        #         cv2.rectangle(frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 0, 255), 2)
+        #         cv2.putText(frame, name, (int(box[0]), int(box[1])-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             
         # 저장 값이 있고 사람 변경 시
-        if is_member :#and is_changed:
+        if is_member: #and is_changed:
             is_changed = False
             height_saved, angle_saved = read_value(name)
             #print(f"name = {name}, {height_saved}, {angle_saved}")
-            
-            if True:#height_saved == -1 or angle_saved == -1 :
+
+            if not message_queue.empty():#height_saved == -1 or angle_saved == -1 :
+                print("messeage received")   
+                message = message_queue.get() 
+
                 for box in boxes:
                     y_point = (box[1]+box[3])//2
                     y_height = frame.shape[0]
@@ -216,12 +230,12 @@ while True:
                     height = int(height)
                     angle = int(angle+90)
                     value = height*1000 + angle
-                    #angle_str = str(int(value)) + '\n'  # 정수를 문자열로 변환하고 개행 문자 추가
                     print('height :', height, 'angle:',angle)
                     angle_str = f"{int(value):06d}\n"  # 정수를 3자리 문자열로 변환하고 나머지 3자리는 "000"으로 채움, 개행 문자 추가
                     print(angle_str)
-                    
-                    if is_arduino_connected:
+                      
+                    write_value(name, height, angle)
+                    if is_arduino_connected:                        
                         py_serial.write(angle_str.encode())  # 문자열을 바이트로 인코딩하여 전송
                         time.sleep(0.1)
             else :
@@ -233,8 +247,8 @@ while True:
                     py_serial.write(angle_str.encode())  # 문자열을 바이트로 인코딩하여 전송
                     time.sleep(0.1)                                                
 
-            cv2.putText(frame, f"Height: {height:.2f} degrees", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(frame, f"Angle: {angle:.2f} degrees", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            #cv2.putText(frame, f"Height: {height:.2f} degrees", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            #cv2.putText(frame, f"Angle: {angle:.2f} degrees", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         # 시리얼 포트로부터 데이터 읽기        
         if is_arduino_connected and py_serial.in_waiting > 0:
@@ -248,7 +262,7 @@ while True:
                     try:
                         value1 = int(values[0])
                         value2 = int(values[1])
-                        print(f"Received values: {value1}, {value2}")
+                        #print(f"Received values: {value1}, {value2}")
                         write_value(name, value1, value2)
                         # 필요한 처리 작업 수행
                     except (ValueError, IndexError):
@@ -256,17 +270,91 @@ while True:
                 else:
                     # 첫 글자가 문자인 경우
                     print(data)
+    else:
+        # face가 None일 때 이름을 "Unknown"으로 설정
+        name = "NoOne"
+        is_member = False  
 
-    # 결과 비디오 출력
-    cv2.imshow('Video', frame)
-      # 딜레이 시간 조정 (필요에 따라 조정)
-    #     print(angle)
-    #     py_serial.write(str(int(angle)))
-    #     time.sleep(5)
-    # 'q' 키를 누르면 루프 종료
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    # 프레임을 Tkinter 라벨에 표시
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_image = Image.fromarray(frame_rgb)
+    frame_tk = ImageTk.PhotoImage(frame_image)
+    video_label.config(image=frame_tk)
+    video_label.image = frame_tk
 
-# 웹캠 릴리스 및 모든 윈도우 닫기
+    # 다음 프레임으로 업데이트
+    video_label.after(10, update_frame)
+# end update_frame() ########################
+
+def update_label():
+    global name, start_time, sState, height, angle
+    height_saved, angle_saved = read_value(name)
+    elapsed_time = time.time() - start_time
+    remaining_time = 5 - int(elapsed_time)
+    remaining_time2 = 3 - int(elapsed_time)
+    if name == "NoOne":
+        name_label.config(text=f"")
+        start_time = time.time()
+        sState = SystemState.WAIT
+    # elif sState == SystemState.INIT:
+    #     if elapsed_time < 3:
+    #         name_label.config(text=f"환영합니다.") 
+    #     else:
+    #         sState = SystemState.WAIT
+    elif sState == SystemState.WAIT:
+        #print("SystemState.WAIT")
+        if name == "Undefined":
+            print("Name Undefined")
+        elif name != "Unknown":
+            if height_saved == -1 or angle_saved == -1 :
+                if remaining_time > 0:  
+                    name_label.config(text=f"환영합니다 {name}님, {remaining_time}초 후에 자동높이 조절합니다.")
+                else: 
+                    print("message send")
+                    message_queue.put("SEND")                            
+                    sState = SystemState.WORKING
+            else: # 등록된 사용자, 수정조절모드 
+                if remaining_time2 > 0:
+                    name_label.config(text=f"환영합니다 {name}님, 수동높이조절 모드입니다.")
+                else:
+                    height, angle = read_value(name)
+                    value = height*1000 + angle
+                    print('height :', height, 'angle:',angle)
+                    angle_str = f"{int(value):06d}\n"  # 정수를 3자리 문자열로 변환하고 나머지 3자리는 "000"으로 채움, 개행 문자 추가
+                    print(angle_str)
+                    
+                    if is_arduino_connected:
+                        py_serial.write(angle_str.encode())  # 문자열을 바이트로 인코딩하여 전송
+                        time.sleep(0.1)                  
+                    name_label.config(text=f"{name}님, 수동높이조절 모드입니다.") 
+                    sState = SystemState.WORKING                                   
+        else:
+            sState = SystemState.WORKING    
+    elif sState == SystemState.WORKING:  
+        #print(f"SystemState.WORKING {name}") 
+        if name == "Unknown":  
+            name_label.config(text=f"등록된 사용자가 아닙니다.")   
+        else :               
+           name_label.config(text=f"{name}님, 수동높이조절 모드입니다.")                                 
+    elif name == "Unknown":
+        #print("SystemState.Unknown")           
+        name_label.config(text=f"등록된 사용자가 아닙니다.")                   
+    else:
+        name_label.config(text=f"")
+
+    root.after(10, lambda: update_label())
+
+# 시작 시간 기록
+start_time = time.time()
+
+py_serial.write(b"START\n")
+
+# 프레임 업데이트 시작
+update_frame()
+update_label()
+
+# Tkinter 창 실행
+root.mainloop()
+
+# 웹캠 릴리스
 video_capture.release()
-cv2.destroyAllWindows()
