@@ -249,12 +249,13 @@ while True:
                         value1 = int(values[0])
                         value2 = int(values[1])
                         print(f"Received values: {value1}, {value2}")
+                        write_value(name, value1, value2)
                         # 필요한 처리 작업 수행
                     except (ValueError, IndexError):
                         print("Invalid input. Expected two integer values separated by a comma.")
                 else:
-                    # 첫 글자가 문자인 경우 무시
-                    print("Ignoring line starting with a character.")
+                    # 첫 글자가 문자인 경우
+                    print(data)
 
     # 결과 비디오 출력
     cv2.imshow('Video', frame)
