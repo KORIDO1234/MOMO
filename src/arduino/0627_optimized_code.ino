@@ -103,6 +103,9 @@ void loop() {
     } else if (startSignalReceived && funcMode == 0 && data.length() >= 6) {
       handleSerialInput(data);
       Serial.println(data);
+    } else if (data == "MAN"){
+      funcMode = 1;
+      Serial.println("MANUAL MODE");
     }
   }
 
