@@ -145,7 +145,7 @@ recognized_time = None
 is_changed = True
 
 # 웹캠 비디오 캡처 초기화
-video_capture = cv2.VideoCapture(0)
+video_capture = cv2.VideoCapture(1)
 
 prev_angle = 90
 height = 0
