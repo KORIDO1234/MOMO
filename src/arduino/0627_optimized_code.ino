@@ -33,7 +33,9 @@ void handleSerialInput(String data) {
     int val2 = data.substring(3).toInt();
     height = constrain(val1, MIN_HEIGHT, MAX_HEIGHT);
     angle = constrain(val2, MIN_ANGLE, MAX_ANGLE);
-  
+    if (angle>90){
+      height = height+height*(angle-90)
+    }
     controlServo();
   }
 }
@@ -102,7 +104,8 @@ void loop() {
       funcMode = 9; // Set to no-op mode
     } else if (startSignalReceived && funcMode == 0 && data.length() >= 6) {
       handleSerialInput(data);
-      Serial.println(data);
+      Serial.println("data");
+      //Serial.println(data);
     } else if (data == "MAN"){
       funcMode = 1;
       Serial.println("MANUAL MODE");
