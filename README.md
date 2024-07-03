@@ -1,5 +1,7 @@
 # GOPENVINO
 사용자 인식과 손동작 인식을 이용한 모니터 각도조절 시스템
+## gantt chart
+![간트차트_고픈비노](https://github.com/KORIDO1234/gopenvino/assets/163944814/d9eaccf6-aeb1-451e-b3da-9eb0a0681931)
 
 ## High Level Design
 * flow chart
