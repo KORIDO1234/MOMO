@@ -2,7 +2,8 @@
 AI를 이용한 스마트 모니터 제어 시스템
 
 ## 개발 계획 (gantt chart)
-![간트차트_고픈비노](https://github.com/KORIDO1234/gopenvino/assets/163944814/d9eaccf6-aeb1-451e-b3da-9eb0a0681931)
+![image](https://github.com/KORIDO1234/gopenvino/assets/163944814/e454eda1-6352-4a7b-809d-7e9db79846fb)
+
 
 ## High Level Design
 * flow chart
