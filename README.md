@@ -62,3 +62,10 @@ python face_recog_arduino.py
 
 3. 수동 조정 중
 ![poster](./output3.png)
+
+# 시연 영상
+
+
+
+https://github.com/user-attachments/assets/8baf4bd4-9bc8-4859-b99c-ed48ed2be7c2
+
