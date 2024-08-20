@@ -1,4 +1,4 @@
-# GOPENVINO
+# 모모 (모두의 모니터) 개요
 AI를 이용한 스마트 모니터 제어 시스템
 
 ## 개발 계획 (gantt chart)
@@ -6,7 +6,7 @@ AI를 이용한 스마트 모니터 제어 시스템
 
 
 ## High Level Design
-* flow chart
+* 알고리즘 흐름도
 ![poster](./flowchart.jpg)
 
 * 아키텍쳐
